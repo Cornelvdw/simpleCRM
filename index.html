@@ -7,7 +7,7 @@
 <style>
   :root{
     --bg:#f6f8fb; --card:#ffffff; --muted:#6b7280; --accent:#0f766e; --accent-2:#06b6d4;
-    --glass: rgba(255,255,255,0.6); font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
   }
   body{margin:0;background:linear-gradient(180deg,#eef2f7 0%,var(--bg) 100%);color:#0f172a;}
   .container{max-width:1100px;margin:28px auto;padding:18px;}
@@ -15,19 +15,15 @@
   header h1{margin:0;font-size:20px;color:var(--accent)}
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}
   .card{background:var(--card);border-radius:12px;padding:18px;box-shadow:0 6px 20px rgba(12,16,26,0.06)}
-  .card .title{font-weight:700;margin-bottom:8px}
+  .title{font-weight:700;margin-bottom:8px}
   .cta{display:inline-block;padding:8px 12px;border-radius:8px;background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#fff;text-decoration:none}
-  /* form */
   form label{display:block;font-size:13px;color:var(--muted);margin-top:12px}
-  input[type="text"], input[type="number"], input[type="date"], select, textarea{
-    width:100%;padding:10px;border:1px solid #e6e9ef;border-radius:8px;margin-top:6px;box-sizing:border-box;background:#fff;
-  }
+  input, textarea, select{width:100%;padding:10px;border:1px solid #e6e9ef;border-radius:8px;margin-top:6px;box-sizing:border-box;background:#fff;}
   textarea{min-height:90px;resize:vertical}
   .row{display:flex;gap:12px}
   .row .col{flex:1}
   .btn{background:var(--accent);color:#fff;border:none;padding:10px 14px;border-radius:8px;cursor:pointer}
   .btn.secondary{background:#e6eef0;color:#04403a}
-  /* list */
   .toolbar{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:12px}
   .filters{display:flex;gap:8px;align-items:center}
   table{width:100%;border-collapse:collapse}
@@ -39,6 +35,7 @@
   .muted{color:var(--muted)}
   footer {margin-top:18px;color:var(--muted);font-size:13px;text-align:center}
   @media (max-width:640px){.row{flex-direction:column}}
+  .loading { opacity: .7; pointer-events: none; }
 </style>
 </head>
 <body>
@@ -77,7 +74,7 @@
           <div><button class="edit-btn" id="backToLanding">← Back</button></div>
         </div>
 
-        <form id="leadForm" style="margin-top:12px">
+        <form id="leadForm" style="margin-top:12px" autocomplete="off">
           <label>Client *</label>
           <input type="text" id="Client" required>
 
@@ -123,7 +120,7 @@
           <textarea id="Notes"></textarea>
 
           <div style="margin-top:12px;display:flex;gap:8px">
-            <button class="btn" type="submit">Save Opportunity</button>
+            <button class="btn" id="saveBtn" type="submit">Save Opportunity</button>
             <button class="edit-btn" type="button" id="cancelLog">Cancel</button>
           </div>
         </form>
@@ -161,9 +158,7 @@
                 <th>Id</th><th>Client</th><th>Sales Rep</th><th>Stage</th><th>Value (Monthly)</th><th>Expected Close</th><th>Actions</th>
               </tr>
             </thead>
-            <tbody id="oppsBody">
-              <!-- rows injected -->
-            </tbody>
+            <tbody id="oppsBody"></tbody>
           </table>
         </div>
 
@@ -193,154 +188,186 @@
   </div>
 
 <script>
-const apiBase = '/api';
+document.addEventListener('DOMContentLoaded', () => {
+  const apiBase = '/api';
 
-// UI toggles
-const landing = document.getElementById('landing');
-const log = document.getElementById('log');
-const list = document.getElementById('list');
-const navLog = document.getElementById('navLog');
-const navList = document.getElementById('navList');
-const goToLog = document.getElementById('goToLog');
-const goToList = document.getElementById('goToList');
-const backToLanding = document.getElementById('backToLanding');
-const backToLanding2 = document.getElementById('backToLanding2');
-const cancelLog = document.getElementById('cancelLog');
+  // UI elements
+  const landing = document.getElementById('landing');
+  const log = document.getElementById('log');
+  const list = document.getElementById('list');
+  const navLog = document.getElementById('navLog');
+  const navList = document.getElementById('navList');
+  const goToLog = document.getElementById('goToLog');
+  const goToList = document.getElementById('goToList');
+  const backToLanding = document.getElementById('backToLanding');
+  const backToLanding2 = document.getElementById('backToLanding2');
+  const cancelLog = document.getElementById('cancelLog');
+  const formMsg = document.getElementById('formMsg');
+  const leadForm = document.getElementById('leadForm');
+  const saveBtn = document.getElementById('saveBtn');
 
-function show(view){
-  landing.classList.add('hidden');
-  log.classList.add('hidden');
-  list.classList.add('hidden');
-  document.getElementById('formMsg').textContent = '';
-  if(view==='landing') landing.classList.remove('hidden');
-  if(view==='log') log.classList.remove('hidden');
-  if(view==='list') list.classList.remove('hidden');
-}
-navLog.onclick = ()=>show('log');
-navList.onclick = ()=>show('list');
-goToLog.onclick = ()=>show('log');
-goToList.onclick = ()=>{ show('list'); loadList(); }
-backToLanding.onclick = ()=>show('landing');
-backToLanding2.onclick = ()=>show('landing');
-cancelLog.onclick = ()=>show('landing');
-
-show('landing');
-
-// Add Lead
-document.getElementById('leadForm').addEventListener('submit', async (e)=>{
-  e.preventDefault();
-  const payload = {
-    Client: document.getElementById('Client').value,
-    DecisionMaker: document.getElementById('DecisionMaker').value,
-    NextSteps: document.getElementById('NextSteps').value,
-    ContactHistory: document.getElementById('ContactHistory').value,
-    ValueMonthly: parseFloat(document.getElementById('ValueMonthly').value || 0) || null,
-    AnnualValue: parseFloat(document.getElementById('AnnualValue').value || 0) || null,
-    Stage: document.getElementById('Stage').value,
-    ExpectedCloseDate: document.getElementById('ExpectedCloseDate').value || null,
-    Supplier: document.getElementById('Supplier').value,
-    QuoteNo: document.getElementById('QuoteNo').value,
-    Products: document.getElementById('Products').value,
-    SalesRep: document.getElementById('SalesRep').value,
-    Notes: document.getElementById('Notes').value
-  };
-  try {
-    const res = await fetch(apiBase + '/AddLead', {
-      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload)
-    });
-    if(res.ok){ 
-      document.getElementById('leadForm').reset();
-      document.getElementById('formMsg').textContent = 'Saved ✓';
-    } else {
-      const txt = await res.text();
-      document.getElementById('formMsg').textContent = 'Error: ' + txt;
-    }
-  } catch(err){
-    document.getElementById('formMsg').textContent = 'Network error: ' + err.message;
+  function show(view){
+    landing.classList.add('hidden');
+    log.classList.add('hidden');
+    list.classList.add('hidden');
+    formMsg.textContent = '';
+    document.getElementById('editArea').classList.add('hidden');
+    if(view==='landing') landing.classList.remove('hidden');
+    if(view==='log') log.classList.remove('hidden');
+    if(view==='list') list.classList.remove('hidden');
   }
-});
+  navLog.onclick = ()=>show('log');
+  navList.onclick = ()=>show('list');
+  goToLog.onclick = ()=>show('log');
+  goToList.onclick = ()=>{ show('list'); loadList(); }
+  backToLanding.onclick = ()=>show('landing');
+  backToLanding2.onclick = ()=>show('landing');
+  cancelLog.onclick = ()=>show('landing');
 
-// Load list
-async function loadList(){
-  const rep = document.getElementById('filterRep').value;
-  const url = apiBase + '/GetLeads' + (rep ? '?salesRep=' + encodeURIComponent(rep) : '');
-  const tbody = document.getElementById('oppsBody');
-  tbody.innerHTML = '<tr><td colspan="7" class="small muted">Loading…</td></tr>';
-  try {
-    const r = await fetch(url);
-    if(!r.ok) { tbody.innerHTML = '<tr><td colspan="7" class="small muted">Error loading</td></tr>'; return; }
-    const items = await r.json();
-    if(!Array.isArray(items) || items.length===0){
-      tbody.innerHTML = '<tr><td colspan="7" class="small muted">No opportunities</td></tr>';
-      return;
+  show('landing');
+
+  // robust submit handler
+  leadForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    // disable while sending
+    leadForm.classList.add('loading');
+    saveBtn.disabled = true;
+    formMsg.textContent = 'Saving…';
+
+    const payload = {
+      Client: document.getElementById('Client').value.trim(),
+      DecisionMaker: document.getElementById('DecisionMaker').value.trim(),
+      NextSteps: document.getElementById('NextSteps') ? document.getElementById('NextSteps').value.trim() : null,
+      ContactHistory: document.getElementById('ContactHistory') ? document.getElementById('ContactHistory').value.trim() : null,
+      ValueMonthly: parseFloat(document.getElementById('ValueMonthly').value || null) || null,
+      AnnualValue: parseFloat(document.getElementById('AnnualValue').value || null) || null,
+      Stage: document.getElementById('Stage').value,
+      ExpectedCloseDate: document.getElementById('ExpectedCloseDate').value || null,
+      Supplier: document.getElementById('Supplier').value.trim(),
+      QuoteNo: document.getElementById('QuoteNo').value.trim(),
+      Products: document.getElementById('Products').value.trim(),
+      SalesRep: document.getElementById('SalesRep').value,
+      Notes: document.getElementById('Notes').value.trim()
+    };
+
+    try {
+      // debug in console
+      console.log('Submitting lead', payload);
+      const res = await fetch(apiBase + '/AddLead', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+        body: JSON.stringify(payload)
+      });
+
+      // parse JSON or text for helpful message
+      const contentType = res.headers.get('content-type') || '';
+      let bodyData;
+      if(contentType.includes('application/json')){
+        bodyData = await res.json();
+      } else {
+        bodyData = await res.text();
+      }
+
+      if(res.ok){
+        leadForm.reset();
+        formMsg.textContent = 'Saved ✓';
+        // refresh list if visible
+        if(!list.classList.contains('hidden')) loadList();
+      } else {
+        console.error('API error', res.status, bodyData);
+        formMsg.textContent = 'Error: ' + (bodyData && bodyData.message ? bodyData.message : (typeof bodyData === 'string' ? bodyData : 'server error'));
+      }
+    } catch(err){
+      console.error('Network error', err);
+      formMsg.textContent = 'Network error: ' + err.message;
+    } finally {
+      leadForm.classList.remove('loading');
+      saveBtn.disabled = false;
     }
-    tbody.innerHTML = items.map(it => `
-      <tr>
-        <td>${it.Id}</td>
-        <td>${escapeHtml(it.Client)}</td>
-        <td>${escapeHtml(it.SalesRep || '')}</td>
-        <td>${escapeHtml(it.Stage || '')}</td>
-        <td>${it.ValueMonthly != null ? it.ValueMonthly.toFixed(2) : ''}</td>
-        <td>${it.ExpectedCloseDate ? it.ExpectedCloseDate.split('T')[0] : ''}</td>
-        <td><button class="edit-btn" data-id="${it.Id}" onclick="startEdit(${it.Id})">Edit</button></td>
-      </tr>
-    `).join('');
-  } catch(err){
-    tbody.innerHTML = '<tr><td colspan="7" class="small muted">Network error</td></tr>';
+  });
+
+  // list & edit (same as before, using helper functions)
+  async function loadList(){
+    const rep = document.getElementById('filterRep').value;
+    const url = apiBase + '/GetLeads' + (rep ? '?salesRep=' + encodeURIComponent(rep) : '');
+    const tbody = document.getElementById('oppsBody');
+    tbody.innerHTML = '<tr><td colspan="7" class="small muted">Loading…</td></tr>';
+    try {
+      const r = await fetch(url, {headers:{'Accept':'application/json'}});
+      if(!r.ok) { tbody.innerHTML = '<tr><td colspan="7" class="small muted">Error loading</td></tr>'; return; }
+      const items = await r.json();
+      if(!Array.isArray(items) || items.length===0){
+        tbody.innerHTML = '<tr><td colspan="7" class="small muted">No opportunities</td></tr>';
+        return;
+      }
+      tbody.innerHTML = items.map(it => `
+        <tr>
+          <td>${it.Id}</td>
+          <td>${escapeHtml(it.Client)}</td>
+          <td>${escapeHtml(it.SalesRep || '')}</td>
+          <td>${escapeHtml(it.Stage || '')}</td>
+          <td>${it.ValueMonthly != null ? Number(it.ValueMonthly).toFixed(2) : ''}</td>
+          <td>${it.ExpectedCloseDate ? it.ExpectedCloseDate.split('T')[0] : ''}</td>
+          <td><button class="edit-btn" data-id="${it.Id}" onclick="startEdit(${it.Id})">Edit</button></td>
+        </tr>
+      `).join('');
+    } catch(err){
+      tbody.innerHTML = '<tr><td colspan="7" class="small muted">Network error</td></tr>';
+    }
   }
-}
+  document.getElementById('applyFilter').onclick = loadList;
+  document.getElementById('refreshList').onclick = loadList;
 
-document.getElementById('applyFilter').onclick = loadList;
-document.getElementById('refreshList').onclick = loadList;
+  // expose startEdit to global for inline button click to call
+  window.startEdit = async function(id){
+    try {
+      const r = await fetch(apiBase + '/GetLeads?id=' + id, {headers:{'Accept':'application/json'}});
+      if(!r.ok){ alert('Error loading record'); return; }
+      const arr = await r.json();
+      if(!arr.length){ alert('Record not found'); return; }
+      const row = arr[0];
+      document.getElementById('editId').value = row.Id;
+      document.getElementById('editClient').value = row.Client || '';
+      document.getElementById('editSalesRep').value = row.SalesRep || 'Janene';
+      document.getElementById('editStage').value = row.Stage || 'New';
+      document.getElementById('editValue').value = row.ValueMonthly || '';
+      document.getElementById('editClose').value = row.ExpectedCloseDate ? row.ExpectedCloseDate.split('T')[0] : '';
+      document.getElementById('editArea').classList.remove('hidden');
+      window.scrollTo({top:document.getElementById('editArea').offsetTop-20, behavior:'smooth'});
+    } catch(err){ alert('Error loading record'); }
+  }
 
-// Edit functions
-window.startEdit = async function(id){
-  // fetch single record (we'll use GET /GetLeads?id=)
-  try {
-    const r = await fetch(apiBase + '/GetLeads?id=' + id);
-    const arr = await r.json();
-    if(!arr.length){ alert('Record not found'); return; }
-    const row = arr[0];
-    document.getElementById('editId').value = row.Id;
-    document.getElementById('editClient').value = row.Client || '';
-    document.getElementById('editSalesRep').value = row.SalesRep || 'Janene';
-    document.getElementById('editStage').value = row.Stage || 'New';
-    document.getElementById('editValue').value = row.ValueMonthly || '';
-    document.getElementById('editClose').value = row.ExpectedCloseDate ? row.ExpectedCloseDate.split('T')[0] : '';
-    document.getElementById('editArea').classList.remove('hidden');
-    window.scrollTo({top:document.getElementById('editArea').offsetTop-20, behavior:'smooth'});
-  } catch(err){ alert('Error loading record'); }
-}
-
-document.getElementById('cancelEdit').onclick = ()=>{
-  document.getElementById('editArea').classList.add('hidden');
-};
-
-document.getElementById('saveEdit').addEventListener('click', async function(e){
-  e.preventDefault();
-  const id = document.getElementById('editId').value;
-  const payload = {
-    Id: id,
-    Client: document.getElementById('editClient').value,
-    SalesRep: document.getElementById('editSalesRep').value,
-    Stage: document.getElementById('editStage').value,
-    ValueMonthly: parseFloat(document.getElementById('editValue').value || 0) || null,
-    ExpectedCloseDate: document.getElementById('editClose').value || null
+  document.getElementById('cancelEdit').onclick = ()=>{
+    document.getElementById('editArea').classList.add('hidden');
   };
-  try {
-    const r = await fetch(apiBase + '/UpdateLead', {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
-    if(r.ok){
-      alert('Saved');
-      document.getElementById('editArea').classList.add('hidden');
-      loadList();
-    } else {
-      alert('Save failed');
-    }
-  } catch(err){ alert('Network error'); }
-});
 
-// utility
-function escapeHtml(s){ if(!s) return ''; return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+  document.getElementById('saveEdit').addEventListener('click', async function(e){
+    e.preventDefault();
+    const id = document.getElementById('editId').value;
+    const payload = {
+      Id: id,
+      Client: document.getElementById('editClient').value,
+      SalesRep: document.getElementById('editSalesRep').value,
+      Stage: document.getElementById('editStage').value,
+      ValueMonthly: parseFloat(document.getElementById('editValue').value || null) || null,
+      ExpectedCloseDate: document.getElementById('editClose').value || null
+    };
+    try {
+      const r = await fetch(apiBase + '/UpdateLead', {method:'PUT', headers:{'Content-Type':'application/json','Accept':'application/json'}, body: JSON.stringify(payload)});
+      if(r.ok){
+        alert('Saved');
+        document.getElementById('editArea').classList.add('hidden');
+        loadList();
+      } else {
+        const body = await r.text();
+        alert('Save failed: ' + body);
+      }
+    } catch(err){ alert('Network error'); }
+  });
+
+  // small helper
+  function escapeHtml(s){ if(!s) return ''; return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+});
 </script>
 </body>
 </html>
