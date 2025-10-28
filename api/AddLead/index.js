@@ -2,13 +2,19 @@ const sql = require('mssql');
 
 module.exports = async function (context, req) {
   const b = req.body || {};
-  if(!b.Client){ context.res = { status:400, body:'Client required' }; return; }
+  if(!b.Client) {
+    context.res = { status: 400, body: { message: 'Client required' } };
+    return;
+  }
 
   try {
     const pool = await sql.connect(process.env.SQL_CONNECTION_STRING);
-    const q = `INSERT INTO Leads (Client, DecisionMaker, NextSteps, ContactHistory, ValueMonthly, AnnualValue, Stage, ExpectedCloseDate, Supplier, QuoteNo, Products, SalesRep, Notes)
-               VALUES (@Client,@DecisionMaker,@NextSteps,@ContactHistory,@ValueMonthly,@AnnualValue,@Stage,@ExpectedCloseDate,@Supplier,@QuoteNo,@Products,@SalesRep,@Notes)`;
-    const reqt = pool.request()
+    const q = `INSERT INTO Leads
+      (Client, DecisionMaker, NextSteps, ContactHistory, ValueMonthly, AnnualValue, Stage, ExpectedCloseDate, Supplier, QuoteNo, Products, SalesRep, Notes)
+      VALUES
+      (@Client,@DecisionMaker,@NextSteps,@ContactHistory,@ValueMonthly,@AnnualValue,@Stage,@ExpectedCloseDate,@Supplier,@QuoteNo,@Products,@SalesRep,@Notes)`;
+
+    const r = pool.request()
       .input('Client', sql.NVarChar(200), b.Client)
       .input('DecisionMaker', sql.NVarChar(200), b.DecisionMaker || null)
       .input('NextSteps', sql.NVarChar(1000), b.NextSteps || null)
@@ -23,12 +29,20 @@ module.exports = async function (context, req) {
       .input('SalesRep', sql.NVarChar(200), b.SalesRep || null)
       .input('Notes', sql.NVarChar(2000), b.Notes || null);
 
-    await reqt.query(q);
-    context.res = { status:200, body: 'OK' };
-  } catch(err){
+    await r.query(q);
+    context.res = {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+      body: { message: 'OK' }
+    };
+  } catch (err) {
     context.log.error(err);
-    context.res = { status:500, body: 'Error saving' };
+    context.res = {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+      body: { message: 'Error saving lead', detail: err.message }
+    };
   } finally {
-    try { await sql.close(); } catch(e){}
+    try { await sql.close(); } catch (e) {}
   }
 };
