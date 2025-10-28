@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Simple CRM - Add Lead</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width:900px; margin:20px auto; }
+    label { display:block; margin-top:10px; font-weight:600; }
+    input, textarea, select { width:100%; padding:8px; box-sizing:border-box; }
+    textarea { min-height:80px; }
+    button { margin-top:15px; padding:10px 18px; }
+  </style>
+</head>
+<body>
+  <h1>Capture Sales Lead</h1>
+  <form id="leadForm">
+    <label>Client</label><input type="text" id="Client" required>
+    <label>Decision Maker</label><input type="text" id="DecisionMaker">
+    <label>Next steps</label><textarea id="NextSteps"></textarea>
+    <label>Contact history</label><textarea id="ContactHistory"></textarea>
+    <label>Value (Monthly)</label><input type="number" id="ValueMonthly" step="0.01" min="0">
+    <label>Annual Value</label><input type="number" id="AnnualValue" step="0.01" min="0">
+    <label>Stage</label>
+    <select id="Stage">
+      <option>New</option><option>Contacted</option><option>Qualified</option>
+      <option>Proposal</option><option>Closed Won</option><option>Closed Lost</option>
+    </select>
+    <label>Expected Close Date</label><input type="date" id="ExpectedCloseDate">
+    <label>Supplier</label><input type="text" id="Supplier">
+    <label>Quote No</label><input type="text" id="QuoteNo">
+    <label>Product/s (comma separated)</label><input type="text" id="Products">
+    <button type="submit">Save Lead</button>
+  </form>
+
+  <script>
+    // Simple helper to call the API
+    async function callApi(payload) {
+      const resp = await fetch('/api/AddLead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      return resp;
+    }
+
+    document.getElementById('leadForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const payload = {
+        Client: document.getElementById('Client').value,
+        DecisionMaker: document.getElementById('DecisionMaker').value,
+        NextSteps: document.getElementById('NextSteps').value,
+        ContactHistory: document.getElementById('ContactHistory').value,
+        ValueMonthly: document.getElementById('ValueMonthly').value || null,
+        AnnualValue: document.getElementById('AnnualValue').value || null,
+        Stage: document.getElementById('Stage').value,
+        ExpectedCloseDate: document.getElementById('ExpectedCloseDate').value || null,
+        Supplier: document.getElementById('Supplier').value,
+        QuoteNo: document.getElementById('QuoteNo').value,
+        Products: document.getElementById('Products').value
+      };
+
+      try {
+        const resp = await callApi(payload);
+        if (resp.ok) {
+          alert('Lead saved successfully');
+          document.getElementById('leadForm').reset();
+        } else {
+          const text = await resp.text();
+          alert('Error saving lead: ' + text);
+        }
+      } catch (err) {
+        alert('Network error: ' + err.message);
+      }
+    });
+  </script>
+</body>
+</html>
