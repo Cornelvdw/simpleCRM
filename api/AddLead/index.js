@@ -46,3 +46,5 @@ module.exports = async function (context, req) {
     try { await sql.close(); } catch (e) {}
   }
 };
+
+
