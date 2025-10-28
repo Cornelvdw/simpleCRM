@@ -3,10 +3,8 @@ const sql = require('mssql');
 module.exports = async function (context, req) {
   try {
     const pool = await sql.connect(process.env.SQL_CONNECTION_STRING);
-    // support either id or salesRep filter
     const id = req.query.id;
     const salesRep = req.query.salesRep;
-
     let q = 'SELECT Id, Client, DecisionMaker, Stage, ValueMonthly, ExpectedCloseDate, SalesRep, CreatedAt FROM Leads';
     const request = pool.request();
 
@@ -20,9 +18,9 @@ module.exports = async function (context, req) {
     q += ' ORDER BY CreatedAt DESC';
 
     const result = await request.query(q);
-    context.res = { status:200, body: result.recordset };
+    context.res = { status:200, headers:{ 'Content-Type':'application/json' }, body: result.recordset };
   } catch(err){
     context.log.error(err);
-    context.res = { status:500, body: 'DB error' };
+    context.res = { status:500, headers:{ 'Content-Type':'application/json' }, body: { message: 'DB error', detail: err.message } };
   } finally { try{ await sql.close(); }catch(e){} }
 };
