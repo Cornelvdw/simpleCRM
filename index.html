@@ -1,77 +1,346 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Simple CRM - Add Lead</title>
-  <style>
-    body { font-family: Arial, sans-serif; max-width:900px; margin:20px auto; }
-    label { display:block; margin-top:10px; font-weight:600; }
-    input, textarea, select { width:100%; padding:8px; box-sizing:border-box; }
-    textarea { min-height:80px; }
-    button { margin-top:15px; padding:10px 18px; }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Simple CRM — Opportunities</title>
+<style>
+  :root{
+    --bg:#f6f8fb; --card:#ffffff; --muted:#6b7280; --accent:#0f766e; --accent-2:#06b6d4;
+    --glass: rgba(255,255,255,0.6); font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  }
+  body{margin:0;background:linear-gradient(180deg,#eef2f7 0%,var(--bg) 100%);color:#0f172a;}
+  .container{max-width:1100px;margin:28px auto;padding:18px;}
+  header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+  header h1{margin:0;font-size:20px;color:var(--accent)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}
+  .card{background:var(--card);border-radius:12px;padding:18px;box-shadow:0 6px 20px rgba(12,16,26,0.06)}
+  .card .title{font-weight:700;margin-bottom:8px}
+  .cta{display:inline-block;padding:8px 12px;border-radius:8px;background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#fff;text-decoration:none}
+  /* form */
+  form label{display:block;font-size:13px;color:var(--muted);margin-top:12px}
+  input[type="text"], input[type="number"], input[type="date"], select, textarea{
+    width:100%;padding:10px;border:1px solid #e6e9ef;border-radius:8px;margin-top:6px;box-sizing:border-box;background:#fff;
+  }
+  textarea{min-height:90px;resize:vertical}
+  .row{display:flex;gap:12px}
+  .row .col{flex:1}
+  .btn{background:var(--accent);color:#fff;border:none;padding:10px 14px;border-radius:8px;cursor:pointer}
+  .btn.secondary{background:#e6eef0;color:#04403a}
+  /* list */
+  .toolbar{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .filters{display:flex;gap:8px;align-items:center}
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:10px;border-bottom:1px solid #f1f5f9;font-size:14px;text-align:left}
+  th{background:#fbfdff;font-weight:700}
+  .small{font-size:13px;color:var(--muted)}
+  .edit-btn{background:#fff;border:1px solid #e6e9ef;padding:6px 8px;border-radius:6px;cursor:pointer}
+  .hidden{display:none}
+  .muted{color:var(--muted)}
+  footer {margin-top:18px;color:var(--muted);font-size:13px;text-align:center}
+  @media (max-width:640px){.row{flex-direction:column}}
+</style>
 </head>
 <body>
-  <h1>Capture Sales Lead</h1>
-  <form id="leadForm">
-    <label>Client</label><input type="text" id="Client" required>
-    <label>Decision Maker</label><input type="text" id="DecisionMaker">
-    <label>Next steps</label><textarea id="NextSteps"></textarea>
-    <label>Contact history</label><textarea id="ContactHistory"></textarea>
-    <label>Value (Monthly)</label><input type="number" id="ValueMonthly" step="0.01" min="0">
-    <label>Annual Value</label><input type="number" id="AnnualValue" step="0.01" min="0">
-    <label>Stage</label>
-    <select id="Stage">
-      <option>New</option><option>Contacted</option><option>Qualified</option>
-      <option>Proposal</option><option>Closed Won</option><option>Closed Lost</option>
-    </select>
-    <label>Expected Close Date</label><input type="date" id="ExpectedCloseDate">
-    <label>Supplier</label><input type="text" id="Supplier">
-    <label>Quote No</label><input type="text" id="QuoteNo">
-    <label>Product/s (comma separated)</label><input type="text" id="Products">
-    <button type="submit">Save Lead</button>
-  </form>
+  <div class="container">
+    <header>
+      <h1>Simple CRM — Opportunities</h1>
+      <nav>
+        <a class="cta" id="navLog">Log New Opportunity</a>
+        <a class="cta" id="navList" style="margin-left:10px;background:#0ea5a4">Show Opportunities</a>
+      </nav>
+    </header>
 
-  <script>
-    // Simple helper to call the API
-    async function callApi(payload) {
-      const resp = await fetch('/api/AddLead', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      return resp;
-    }
+    <main>
+      <section id="landing" class="grid">
+        <div class="card">
+          <div class="title">Log New Opportunity</div>
+          <div class="small muted">Quickly capture a new sales opportunity.</div>
+          <div style="margin-top:12px">
+            <button class="btn" id="goToLog">Create Opportunity</button>
+          </div>
+        </div>
 
-    document.getElementById('leadForm').addEventListener('submit', async function(e) {
-      e.preventDefault();
-      const payload = {
-        Client: document.getElementById('Client').value,
-        DecisionMaker: document.getElementById('DecisionMaker').value,
-        NextSteps: document.getElementById('NextSteps').value,
-        ContactHistory: document.getElementById('ContactHistory').value,
-        ValueMonthly: document.getElementById('ValueMonthly').value || null,
-        AnnualValue: document.getElementById('AnnualValue').value || null,
-        Stage: document.getElementById('Stage').value,
-        ExpectedCloseDate: document.getElementById('ExpectedCloseDate').value || null,
-        Supplier: document.getElementById('Supplier').value,
-        QuoteNo: document.getElementById('QuoteNo').value,
-        Products: document.getElementById('Products').value
-      };
+        <div class="card">
+          <div class="title">Show Opportunities</div>
+          <div class="small muted">View and filter open opportunities, edit when needed.</div>
+          <div style="margin-top:12px">
+            <button class="btn secondary" id="goToList">View Opportunities</button>
+          </div>
+        </div>
+      </section>
 
-      try {
-        const resp = await callApi(payload);
-        if (resp.ok) {
-          alert('Lead saved successfully');
-          document.getElementById('leadForm').reset();
-        } else {
-          const text = await resp.text();
-          alert('Error saving lead: ' + text);
-        }
-      } catch (err) {
-        alert('Network error: ' + err.message);
-      }
+      <!-- Log form -->
+      <section id="log" class="card hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h2 style="margin:0">Log New Opportunity</h2>
+          <div><button class="edit-btn" id="backToLanding">← Back</button></div>
+        </div>
+
+        <form id="leadForm" style="margin-top:12px">
+          <label>Client *</label>
+          <input type="text" id="Client" required>
+
+          <label>Decision Maker</label>
+          <input type="text" id="DecisionMaker">
+
+          <div class="row">
+            <div class="col">
+              <label>Value (Monthly)</label>
+              <input type="number" id="ValueMonthly" step="0.01" min="0">
+            </div>
+            <div class="col">
+              <label>Annual Value</label>
+              <input type="number" id="AnnualValue" step="0.01" min="0">
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col">
+              <label>Stage</label>
+              <select id="Stage">
+                <option>New</option><option>Contacted</option><option>Qualified</option>
+                <option>Proposal</option><option>Closed Won</option><option>Closed Lost</option>
+              </select>
+            </div>
+            <div class="col">
+              <label>Expected Close Date</label>
+              <input type="date" id="ExpectedCloseDate">
+            </div>
+          </div>
+
+          <label>Supplier</label><input type="text" id="Supplier">
+          <label>Quote No</label><input type="text" id="QuoteNo">
+          <label>Product/s</label><input type="text" id="Products">
+
+          <label>Sales Rep</label>
+          <select id="SalesRep">
+            <option value="Janene">Janene</option>
+            <option value="Jaco">Jaco</option>
+          </select>
+
+          <label>Notes</label>
+          <textarea id="Notes"></textarea>
+
+          <div style="margin-top:12px;display:flex;gap:8px">
+            <button class="btn" type="submit">Save Opportunity</button>
+            <button class="edit-btn" type="button" id="cancelLog">Cancel</button>
+          </div>
+        </form>
+
+        <div id="formMsg" class="small muted" style="margin-top:10px"></div>
+      </section>
+
+      <!-- List / filter -->
+      <section id="list" class="card hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h2 style="margin:0">Opportunities</h2>
+          <div><button class="edit-btn" id="backToLanding2">← Back</button></div>
+        </div>
+
+        <div class="toolbar" style="margin-top:12px">
+          <div class="filters">
+            <label class="small">Filter by Sales Rep:</label>
+            <select id="filterRep">
+              <option value="">All</option>
+              <option value="Janene">Janene</option>
+              <option value="Jaco">Jaco</option>
+            </select>
+            <button class="edit-btn" id="applyFilter">Apply</button>
+          </div>
+
+          <div>
+            <button class="edit-btn" id="refreshList">Refresh</button>
+          </div>
+        </div>
+
+        <div id="tableWrap" style="overflow:auto">
+          <table id="oppsTable" aria-live="polite">
+            <thead>
+              <tr>
+                <th>Id</th><th>Client</th><th>Sales Rep</th><th>Stage</th><th>Value (Monthly)</th><th>Expected Close</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="oppsBody">
+              <!-- rows injected -->
+            </tbody>
+          </table>
+        </div>
+
+        <div id="editArea" class="hidden" style="margin-top:12px">
+          <h3>Edit Opportunity</h3>
+          <form id="editForm">
+            <input type="hidden" id="editId">
+            <label>Client</label><input type="text" id="editClient">
+            <label>Sales Rep</label>
+            <select id="editSalesRep">
+              <option>Janene</option><option>Jaco</option>
+            </select>
+            <label>Stage</label><select id="editStage"><option>New</option><option>Contacted</option><option>Qualified</option><option>Proposal</option><option>Closed Won</option><option>Closed Lost</option></select>
+            <label>Value Monthly</label><input type="number" id="editValue" step="0.01">
+            <label>Expected Close Date</label><input type="date" id="editClose">
+            <div style="margin-top:10px">
+              <button class="btn" id="saveEdit">Save</button>
+              <button type="button" class="edit-btn" id="cancelEdit">Cancel</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+    </main>
+
+    <footer>Built for quick testing • Edit and expand as needed</footer>
+  </div>
+
+<script>
+const apiBase = '/api';
+
+// UI toggles
+const landing = document.getElementById('landing');
+const log = document.getElementById('log');
+const list = document.getElementById('list');
+const navLog = document.getElementById('navLog');
+const navList = document.getElementById('navList');
+const goToLog = document.getElementById('goToLog');
+const goToList = document.getElementById('goToList');
+const backToLanding = document.getElementById('backToLanding');
+const backToLanding2 = document.getElementById('backToLanding2');
+const cancelLog = document.getElementById('cancelLog');
+
+function show(view){
+  landing.classList.add('hidden');
+  log.classList.add('hidden');
+  list.classList.add('hidden');
+  document.getElementById('formMsg').textContent = '';
+  if(view==='landing') landing.classList.remove('hidden');
+  if(view==='log') log.classList.remove('hidden');
+  if(view==='list') list.classList.remove('hidden');
+}
+navLog.onclick = ()=>show('log');
+navList.onclick = ()=>show('list');
+goToLog.onclick = ()=>show('log');
+goToList.onclick = ()=>{ show('list'); loadList(); }
+backToLanding.onclick = ()=>show('landing');
+backToLanding2.onclick = ()=>show('landing');
+cancelLog.onclick = ()=>show('landing');
+
+show('landing');
+
+// Add Lead
+document.getElementById('leadForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const payload = {
+    Client: document.getElementById('Client').value,
+    DecisionMaker: document.getElementById('DecisionMaker').value,
+    NextSteps: document.getElementById('NextSteps').value,
+    ContactHistory: document.getElementById('ContactHistory').value,
+    ValueMonthly: parseFloat(document.getElementById('ValueMonthly').value || 0) || null,
+    AnnualValue: parseFloat(document.getElementById('AnnualValue').value || 0) || null,
+    Stage: document.getElementById('Stage').value,
+    ExpectedCloseDate: document.getElementById('ExpectedCloseDate').value || null,
+    Supplier: document.getElementById('Supplier').value,
+    QuoteNo: document.getElementById('QuoteNo').value,
+    Products: document.getElementById('Products').value,
+    SalesRep: document.getElementById('SalesRep').value,
+    Notes: document.getElementById('Notes').value
+  };
+  try {
+    const res = await fetch(apiBase + '/AddLead', {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload)
     });
-  </script>
+    if(res.ok){ 
+      document.getElementById('leadForm').reset();
+      document.getElementById('formMsg').textContent = 'Saved ✓';
+    } else {
+      const txt = await res.text();
+      document.getElementById('formMsg').textContent = 'Error: ' + txt;
+    }
+  } catch(err){
+    document.getElementById('formMsg').textContent = 'Network error: ' + err.message;
+  }
+});
+
+// Load list
+async function loadList(){
+  const rep = document.getElementById('filterRep').value;
+  const url = apiBase + '/GetLeads' + (rep ? '?salesRep=' + encodeURIComponent(rep) : '');
+  const tbody = document.getElementById('oppsBody');
+  tbody.innerHTML = '<tr><td colspan="7" class="small muted">Loading…</td></tr>';
+  try {
+    const r = await fetch(url);
+    if(!r.ok) { tbody.innerHTML = '<tr><td colspan="7" class="small muted">Error loading</td></tr>'; return; }
+    const items = await r.json();
+    if(!Array.isArray(items) || items.length===0){
+      tbody.innerHTML = '<tr><td colspan="7" class="small muted">No opportunities</td></tr>';
+      return;
+    }
+    tbody.innerHTML = items.map(it => `
+      <tr>
+        <td>${it.Id}</td>
+        <td>${escapeHtml(it.Client)}</td>
+        <td>${escapeHtml(it.SalesRep || '')}</td>
+        <td>${escapeHtml(it.Stage || '')}</td>
+        <td>${it.ValueMonthly != null ? it.ValueMonthly.toFixed(2) : ''}</td>
+        <td>${it.ExpectedCloseDate ? it.ExpectedCloseDate.split('T')[0] : ''}</td>
+        <td><button class="edit-btn" data-id="${it.Id}" onclick="startEdit(${it.Id})">Edit</button></td>
+      </tr>
+    `).join('');
+  } catch(err){
+    tbody.innerHTML = '<tr><td colspan="7" class="small muted">Network error</td></tr>';
+  }
+}
+
+document.getElementById('applyFilter').onclick = loadList;
+document.getElementById('refreshList').onclick = loadList;
+
+// Edit functions
+window.startEdit = async function(id){
+  // fetch single record (we'll use GET /GetLeads?id=)
+  try {
+    const r = await fetch(apiBase + '/GetLeads?id=' + id);
+    const arr = await r.json();
+    if(!arr.length){ alert('Record not found'); return; }
+    const row = arr[0];
+    document.getElementById('editId').value = row.Id;
+    document.getElementById('editClient').value = row.Client || '';
+    document.getElementById('editSalesRep').value = row.SalesRep || 'Janene';
+    document.getElementById('editStage').value = row.Stage || 'New';
+    document.getElementById('editValue').value = row.ValueMonthly || '';
+    document.getElementById('editClose').value = row.ExpectedCloseDate ? row.ExpectedCloseDate.split('T')[0] : '';
+    document.getElementById('editArea').classList.remove('hidden');
+    window.scrollTo({top:document.getElementById('editArea').offsetTop-20, behavior:'smooth'});
+  } catch(err){ alert('Error loading record'); }
+}
+
+document.getElementById('cancelEdit').onclick = ()=>{
+  document.getElementById('editArea').classList.add('hidden');
+};
+
+document.getElementById('saveEdit').addEventListener('click', async function(e){
+  e.preventDefault();
+  const id = document.getElementById('editId').value;
+  const payload = {
+    Id: id,
+    Client: document.getElementById('editClient').value,
+    SalesRep: document.getElementById('editSalesRep').value,
+    Stage: document.getElementById('editStage').value,
+    ValueMonthly: parseFloat(document.getElementById('editValue').value || 0) || null,
+    ExpectedCloseDate: document.getElementById('editClose').value || null
+  };
+  try {
+    const r = await fetch(apiBase + '/UpdateLead', {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+    if(r.ok){
+      alert('Saved');
+      document.getElementById('editArea').classList.add('hidden');
+      loadList();
+    } else {
+      alert('Save failed');
+    }
+  } catch(err){ alert('Network error'); }
+});
+
+// utility
+function escapeHtml(s){ if(!s) return ''; return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+</script>
 </body>
 </html>
